@@ -1,15 +1,28 @@
-import json
 import requests
 import xml.etree.ElementTree as ET
 from ncclient import manager
 from ncclient.operations import RPCError
 
 # -------------------------
+# DEVICE SETTINGS
+# -------------------------
+ROUTER = "192.168.50.1"
+USERNAME = "automation"
+PASSWORD = "test"
+
+# -------------------------
 # GITHUB SETTINGS
 # -------------------------
-GITHUB_USER = "JOUW_GITHUB_NAAM"
+GITHUB_USER = "JorreNobenPXL"
 GITHUB_REPO = "netconf-iac-project"
 GITHUB_BRANCH = "main"
+
+CONFIG_FILES = [
+    "01_hostname.xml",
+    "02_int_desc.xml",
+    "03_int_ip.xml",
+    "04_ospf.xml"
+]
 
 # -------------------------
 # NAMESPACES
@@ -21,22 +34,22 @@ NS = {
 }
 
 # -------------------------
-# GITHUB DOWNLOAD
+# GITHUB FUNCTIONS
 # -------------------------
-def github_raw_url(device_name, filename):
-    return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/configs/{device_name}/{filename}"
+def github_raw_url(filename):
+    return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/configs/{filename}"
 
-def download_xml(device_name, filename):
-    url = github_raw_url(device_name, filename)
+def download_xml(filename):
+    url = github_raw_url(filename)
     r = requests.get(url)
 
     if r.status_code != 200:
-        raise Exception(f"Failed to download {filename} for {device_name} (HTTP {r.status_code})")
+        raise Exception(f"Failed to download {filename} (HTTP {r.status_code})")
 
     return r.text
 
 # -------------------------
-# NETCONF HELPERS
+# NETCONF HELPER FUNCTIONS
 # -------------------------
 def netconf_get_config(m, filter_body):
     filter_xml = f"""
@@ -57,9 +70,9 @@ def apply_config(m, xml_config):
     try:
         m.lock("running")
         m.edit_config(target="running", config=xml_config)
-        print("      [+] edit-config OK")
+        print("   [+] edit-config OK")
     except RPCError as e:
-        print("      [!] RPC Error!")
+        print("   [!] RPC Error!")
         print(e)
     finally:
         m.unlock("running")
@@ -80,8 +93,8 @@ def check_hostname(m, desired_xml):
     running_xml = netconf_get_config(m, filter_body)
     current_hostname = extract_text(running_xml, ".//xe:hostname")
 
-    print(f"      Current hostname: {current_hostname}")
-    print(f"      Desired hostname: {desired_hostname}")
+    print(f"   Current hostname: {current_hostname}")
+    print(f"   Desired hostname: {desired_hostname}")
 
     return current_hostname != desired_hostname
 
@@ -107,9 +120,9 @@ def check_interface_desc(m, desired_xml):
     xpath = f".//xe:GigabitEthernet[xe:name='{iface_name}']/xe:description"
     current_desc = extract_text(running_xml, xpath)
 
-    print(f"      Interface: GigabitEthernet{iface_name}")
-    print(f"      Current desc: {current_desc}")
-    print(f"      Desired desc: {desired_desc}")
+    print(f"   Interface: GigabitEthernet{iface_name}")
+    print(f"   Current desc: {current_desc}")
+    print(f"   Desired desc: {desired_desc}")
 
     return current_desc != desired_desc
 
@@ -147,9 +160,9 @@ def check_interface_ip(m, desired_xml):
     current_ip = extract_text(running_xml, xpath_ip)
     current_mask = extract_text(running_xml, xpath_mask)
 
-    print(f"      Interface: GigabitEthernet{iface_name}")
-    print(f"      Current IP: {current_ip} {current_mask}")
-    print(f"      Desired IP: {desired_ip} {desired_mask}")
+    print(f"   Interface: GigabitEthernet{iface_name}")
+    print(f"   Current IP: {current_ip} {current_mask}")
+    print(f"   Desired IP: {desired_ip} {desired_mask}")
 
     return current_ip != desired_ip or current_mask != desired_mask
 
@@ -172,13 +185,17 @@ def check_ospf(m, desired_xml):
     """
 
     running_xml = netconf_get_config(m, filter_body)
+
     current_routerid = extract_text(running_xml, ".//ospf:router-id")
 
-    print(f"      OSPF process: {desired_process}")
-    print(f"      Current router-id: {current_routerid}")
-    print(f"      Desired router-id: {desired_routerid}")
+    print(f"   OSPF process: {desired_process}")
+    print(f"   Current router-id: {current_routerid}")
+    print(f"   Desired router-id: {desired_routerid}")
 
-    return current_routerid != desired_routerid
+    if current_routerid != desired_routerid:
+        return True
+
+    return False
 
 
 CHECK_FUNCTIONS = {
@@ -189,68 +206,42 @@ CHECK_FUNCTIONS = {
 }
 
 # -------------------------
-# DEVICE DEPLOY
-# -------------------------
-def deploy_device(device):
-    name = device["name"]
-    ip = device["ip"]
-    port = device.get("port", 830)
-    username = device["username"]
-    password = device["password"]
-
-    print(f"\n==============================")
-    print(f"[+] Deploying to {name} ({ip})")
-    print(f"==============================")
-
-    config_files = list(CHECK_FUNCTIONS.keys())
-
-    try:
-        with manager.connect(
-            host=ip,
-            port=port,
-            username=username,
-            password=password,
-            hostkey_verify=False,
-            allow_agent=False,
-            look_for_keys=False
-        ) as m:
-
-            print("[+] Connected")
-
-            for filename in config_files:
-                print(f"\n   -> Processing {filename}")
-
-                try:
-                    desired_xml = download_xml(name, filename)
-                except Exception as e:
-                    print(f"      [!] Skipping {filename}: {e}")
-                    continue
-
-                needs_change = CHECK_FUNCTIONS[filename](m, desired_xml)
-
-                if not needs_change:
-                    print(f"      [=] SKIP {filename} (already correct)")
-                    continue
-
-                print(f"      [!] APPLY {filename}")
-                apply_config(m, desired_xml)
-
-            print(f"\n[+] Finished device {name}")
-
-    except Exception as e:
-        print(f"[!] Failed connecting to {name}: {e}")
-
-# -------------------------
-# MAIN
+# MAIN DEPLOY
 # -------------------------
 def main():
-    with open("devices.json", "r") as f:
-        devices = json.load(f)
+    with manager.connect(
+        host=ROUTER,
+        port=830,
+        username=USERNAME,
+        password=PASSWORD,
+        hostkey_verify=False,
+        allow_agent=False,
+        look_for_keys=False
+    ) as m:
 
-    for device in devices:
-        deploy_device(device)
+        print("[+] Connected to NETCONF device")
 
-    print("\n[+] All devices deployment finished")
+        for filename in CONFIG_FILES:
+            print(f"\n[+] Processing {filename}")
+
+            desired_xml = download_xml(filename)
+
+            if filename not in CHECK_FUNCTIONS:
+                print("   [!] No check function found, applying blindly...")
+                apply_config(m, desired_xml)
+                continue
+
+            needs_change = CHECK_FUNCTIONS[filename](m, desired_xml)
+
+            if not needs_change:
+                print(f"   [=] SKIP {filename} (already correct)")
+                continue
+
+            print(f"   [!] APPLY {filename}")
+            apply_config(m, desired_xml)
+
+        print("\n[+] Deployment finished")
+
 
 if __name__ == "__main__":
     main()
