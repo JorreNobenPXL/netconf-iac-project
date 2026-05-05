@@ -12,7 +12,6 @@
             <vlan>50</vlan>
           </access>
         </switchport>
-        <shutdown>false</shutdown>
       </GigabitEthernet>
 
       <GigabitEthernet>
@@ -25,7 +24,6 @@
             <vlan>50</vlan>
           </access>
         </switchport>
-        <shutdown>false</shutdown>
       </GigabitEthernet>
 
     </interface>

@@ -21,7 +21,7 @@ NS = {
 }
 
 # -------------------------
-# GITHUB DOWNLOAD
+# GITHUB FUNCTIONS
 # -------------------------
 def github_raw_url(device_name, filename):
     return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/configs/{device_name}/{filename}"
@@ -34,6 +34,23 @@ def download_xml(device_name, filename):
         raise Exception(f"Failed to download {filename} for {device_name} (HTTP {r.status_code})")
 
     return r.text
+
+def list_device_configs(device_name):
+    api_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/configs/{device_name}?ref={GITHUB_BRANCH}"
+    r = requests.get(api_url)
+
+    if r.status_code != 200:
+        raise Exception(f"Cannot list configs for {device_name} (HTTP {r.status_code})")
+
+    data = r.json()
+
+    xml_files = []
+    for item in data:
+        if item["name"].endswith(".xml"):
+            xml_files.append(item["name"])
+
+    xml_files.sort()
+    return xml_files
 
 # -------------------------
 # NETCONF HELPERS
@@ -55,13 +72,20 @@ def extract_text(xml_data, xpath):
 
 def apply_config(m, xml_config):
     try:
+        print("      [+] Lock running")
         m.lock("running")
+
+        print("      [+] Sending edit-config")
         m.edit_config(target="running", config=xml_config)
+
         print("      [+] edit-config OK")
+
     except RPCError as e:
         print("      [!] RPC Error!")
         print(e)
+
     finally:
+        print("      [+] Unlock running")
         m.unlock("running")
 
 # -------------------------
@@ -160,25 +184,54 @@ def check_ospf(m, desired_xml):
     desired_process = desired_root.find(".//ospf:id", NS).text
     desired_routerid = desired_root.find(".//ospf:router-id", NS).text
 
+    desired_networks = []
+    for net in desired_root.findall(".//ospf:network", NS):
+        ip = net.find("ospf:ip", NS).text
+        wildcard = net.find("ospf:wildcard", NS).text
+        area = net.find("ospf:area", NS).text
+        desired_networks.append((ip, wildcard, area))
+
     filter_body = f"""
     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
       <router>
         <ospf xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-ospf">
           <id>{desired_process}</id>
           <router-id/>
+          <network/>
         </ospf>
       </router>
     </native>
     """
 
     running_xml = netconf_get_config(m, filter_body)
+
     current_routerid = extract_text(running_xml, ".//ospf:router-id")
+
+    current_networks = []
+    running_root = ET.fromstring(running_xml)
+
+    for net in running_root.findall(".//ospf:network", NS):
+        ip = net.find("ospf:ip", NS).text
+        wildcard = net.find("ospf:wildcard", NS).text
+        area = net.find("ospf:area", NS).text
+        current_networks.append((ip, wildcard, area))
+
+    desired_networks.sort()
+    current_networks.sort()
 
     print(f"      OSPF process: {desired_process}")
     print(f"      Current router-id: {current_routerid}")
     print(f"      Desired router-id: {desired_routerid}")
+    print(f"      Current networks: {current_networks}")
+    print(f"      Desired networks: {desired_networks}")
 
-    return current_routerid != desired_routerid
+    if current_routerid != desired_routerid:
+        return True
+
+    if current_networks != desired_networks:
+        return True
+
+    return False
 
 
 CHECK_FUNCTIONS = {
@@ -202,7 +255,11 @@ def deploy_device(device):
     print(f"[+] Deploying to {name} ({ip})")
     print(f"==============================")
 
-    config_files = list(CHECK_FUNCTIONS.keys())
+    try:
+        config_files = list_device_configs(name)
+    except Exception as e:
+        print(f"[!] Cannot load config list for {name}: {e}")
+        return
 
     try:
         with manager.connect(
@@ -226,14 +283,19 @@ def deploy_device(device):
                     print(f"      [!] Skipping {filename}: {e}")
                     continue
 
-                needs_change = CHECK_FUNCTIONS[filename](m, desired_xml)
+                if filename in CHECK_FUNCTIONS:
+                    needs_change = CHECK_FUNCTIONS[filename](m, desired_xml)
 
-                if not needs_change:
-                    print(f"      [=] SKIP {filename} (already correct)")
-                    continue
+                    if not needs_change:
+                        print(f"      [=] SKIP {filename} (already correct)")
+                        continue
 
-                print(f"      [!] APPLY {filename}")
-                apply_config(m, desired_xml)
+                    print(f"      [!] APPLY {filename}")
+                    apply_config(m, desired_xml)
+
+                else:
+                    print(f"      [?] No check function for {filename}, applying anyway...")
+                    apply_config(m, desired_xml)
 
             print(f"\n[+] Finished device {name}")
 

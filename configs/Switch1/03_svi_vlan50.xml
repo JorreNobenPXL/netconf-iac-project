@@ -11,7 +11,6 @@
             </primary>
           </address>
         </ip>
-        <shutdown>false</shutdown>
       </Vlan>
     </interface>
   </native>

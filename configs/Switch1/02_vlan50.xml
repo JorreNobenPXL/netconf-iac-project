@@ -4,6 +4,7 @@
       <vlan-list>
         <id>50</id>
         <name>MGMT</name>
+        <state>active</state>
       </vlan-list>
     </vlan>
   </native>
