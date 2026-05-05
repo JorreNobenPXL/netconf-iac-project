@@ -3,7 +3,7 @@
     <interface>
       <GigabitEthernet>
         <name>0/0/0</name>
-        <description>DIT IS EEN TEST HALLLOOOOOOOOOOOOOO</description>
+        <description>DIT IS EEN TESt</description>
       </GigabitEthernet>
     </interface>
   </native>
