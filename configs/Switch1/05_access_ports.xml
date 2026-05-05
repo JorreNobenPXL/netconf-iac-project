@@ -1,31 +1,11 @@
 <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-    <interface>
+  <cli-config-data>
+    <cmd>interface gi0/1</cmd>
+    <cmd>switchport mode access</cmd>
+    <cmd>switchport access vlan 50</cmd>
 
-      <GigabitEthernet>
-        <name>0/1</name>
-        <switchport>
-          <mode>
-            <access/>
-          </mode>
-          <access>
-            <vlan>50</vlan>
-          </access>
-        </switchport>
-      </GigabitEthernet>
-
-      <GigabitEthernet>
-        <name>0/2</name>
-        <switchport>
-          <mode>
-            <access/>
-          </mode>
-          <access>
-            <vlan>50</vlan>
-          </access>
-        </switchport>
-      </GigabitEthernet>
-
-    </interface>
-  </native>
+    <cmd>interface gi0/2</cmd>
+    <cmd>switchport mode access</cmd>
+    <cmd>switchport access vlan 50</cmd>
+  </cli-config-data>
 </config>

@@ -1,11 +1,6 @@
 <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-    <vlan>
-      <vlan-list>
-        <id>50</id>
-        <name>MGMT</name>
-        <state>active</state>
-      </vlan-list>
-    </vlan>
-  </native>
+  <cli-config-data>
+    <cmd>vlan 50</cmd>
+    <cmd>name MGMT</cmd>
+  </cli-config-data>
 </config>
