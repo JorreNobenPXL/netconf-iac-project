@@ -7,7 +7,7 @@ from ncclient.operations import RPCError
 # -------------------------
 # GITHUB SETTINGS
 # -------------------------
-GITHUB_USER = "JOUW_GITHUB_NAAM"
+GITHUB_USER = "JorreNobenPXL"
 GITHUB_REPO = "netconf-iac-project"
 GITHUB_BRANCH = "main"
 
