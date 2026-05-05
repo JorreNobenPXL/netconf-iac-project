@@ -1,0 +1,10 @@
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>0/0/0</name>
+        <description>DIT IS EEN TEST HALLLOOOOOOOOOOOOOO</description>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</config>
