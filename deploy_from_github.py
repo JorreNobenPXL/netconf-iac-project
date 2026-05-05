@@ -233,12 +233,151 @@ def check_ospf(m, desired_xml):
 
     return False
 
+def check_vlan(m, desired_xml):
+    desired_root = ET.fromstring(desired_xml)
+
+    vlan_id = desired_root.find(".//xe:vlan/xe:vlan-list/xe:id", NS).text
+    vlan_name_node = desired_root.find(".//xe:vlan/xe:vlan-list/xe:name", NS)
+    desired_name = vlan_name_node.text if vlan_name_node is not None else None
+
+    filter_body = f"""
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+      <vlan>
+        <vlan-list>
+          <id>{vlan_id}</id>
+          <name/>
+        </vlan-list>
+      </vlan>
+    </native>
+    """
+
+    running_xml = netconf_get_config(m, filter_body)
+
+    current_name = extract_text(running_xml, ".//xe:vlan-list/xe:name")
+
+    print(f"      VLAN ID: {vlan_id}")
+    print(f"      Current VLAN name: {current_name}")
+    print(f"      Desired VLAN name: {desired_name}")
+
+    if current_name is None:
+        return True
+
+    if desired_name is not None and current_name != desired_name:
+        return True
+
+    return False
+
+
+def check_svi_vlan_ip(m, desired_xml):
+    desired_root = ET.fromstring(desired_xml)
+
+    vlan_id = desired_root.find(".//xe:Vlan/xe:name", NS).text
+    desired_ip = desired_root.find(".//xe:primary/xe:address", NS).text
+    desired_mask = desired_root.find(".//xe:primary/xe:mask", NS).text
+
+    filter_body = f"""
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+      <interface>
+        <Vlan>
+          <name>{vlan_id}</name>
+          <ip>
+            <address>
+              <primary>
+                <address/>
+                <mask/>
+              </primary>
+            </address>
+          </ip>
+        </Vlan>
+      </interface>
+    </native>
+    """
+
+    running_xml = netconf_get_config(m, filter_body)
+
+    xpath_ip = f".//xe:Vlan[xe:name='{vlan_id}']/xe:ip/xe:address/xe:primary/xe:address"
+    xpath_mask = f".//xe:Vlan[xe:name='{vlan_id}']/xe:ip/xe:address/xe:primary/xe:mask"
+
+    current_ip = extract_text(running_xml, xpath_ip)
+    current_mask = extract_text(running_xml, xpath_mask)
+
+    print(f"      SVI VLAN: {vlan_id}")
+    print(f"      Current IP: {current_ip} {current_mask}")
+    print(f"      Desired IP: {desired_ip} {desired_mask}")
+
+    return current_ip != desired_ip or current_mask != desired_mask
+
+
+def check_default_gateway(m, desired_xml):
+    desired_root = ET.fromstring(desired_xml)
+
+    desired_gw = desired_root.find(".//xe:default-gateway", NS).text
+
+    filter_body = """
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+      <ip>
+        <default-gateway/>
+      </ip>
+    </native>
+    """
+
+    running_xml = netconf_get_config(m, filter_body)
+
+    current_gw = extract_text(running_xml, ".//xe:default-gateway")
+
+    print(f"      Current default gateway: {current_gw}")
+    print(f"      Desired default gateway: {desired_gw}")
+
+    return current_gw != desired_gw
+
+
+def check_switchport_access_vlan(m, desired_xml):
+    desired_root = ET.fromstring(desired_xml)
+
+    ports = desired_root.findall(".//xe:GigabitEthernet", NS)
+
+    for port in ports:
+        iface = port.find("xe:name", NS).text
+        vlan = port.find(".//xe:access/xe:vlan", NS).text
+
+        filter_body = f"""
+        <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+          <interface>
+            <GigabitEthernet>
+              <name>{iface}</name>
+              <switchport>
+                <access>
+                  <vlan/>
+                </access>
+              </switchport>
+            </GigabitEthernet>
+          </interface>
+        </native>
+        """
+
+        running_xml = netconf_get_config(m, filter_body)
+
+        xpath_vlan = f".//xe:GigabitEthernet[xe:name='{iface}']/xe:switchport/xe:access/xe:vlan"
+        current_vlan = extract_text(running_xml, xpath_vlan)
+
+        print(f"      Interface Gi{iface} current VLAN: {current_vlan}")
+        print(f"      Interface Gi{iface} desired VLAN: {vlan}")
+
+        if current_vlan != vlan:
+            return True
+
+    return False
+
 
 CHECK_FUNCTIONS = {
     "01_hostname.xml": check_hostname,
     "02_int_desc.xml": check_interface_desc,
     "03_int_ip.xml": check_interface_ip,
-    "04_ospf.xml": check_ospf
+    "04_ospf.xml": check_ospf,
+    "02_vlan50.xml": check_vlan,
+    "03_svi_vlan50.xml": check_svi_vlan_ip,
+    "04_default_gateway.xml": check_default_gateway,
+    "05_access_ports.xml": check_switchport_access_vlan
 }
 
 # -------------------------
