@@ -3,7 +3,11 @@
     <interface>
       <GigabitEthernet>
         <name>0/0/0</name>
+<<<<<<< HEAD:configs/Router1/02_int_desc.xml
         <description>DIT IS EEN TESt</description>
+=======
+        <description>LAPTOP AUTOMATION LINK</description>
+>>>>>>> 3fd511830604bbcd2ee2885fc7b5972c0009859f:configs/02_int_desc.xml
       </GigabitEthernet>
     </interface>
   </native>
