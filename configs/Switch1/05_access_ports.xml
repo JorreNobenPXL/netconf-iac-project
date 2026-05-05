@@ -1,0 +1,33 @@
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+
+      <GigabitEthernet>
+        <name>0/1</name>
+        <switchport>
+          <mode>
+            <access/>
+          </mode>
+          <access>
+            <vlan>50</vlan>
+          </access>
+        </switchport>
+        <shutdown>false</shutdown>
+      </GigabitEthernet>
+
+      <GigabitEthernet>
+        <name>0/2</name>
+        <switchport>
+          <mode>
+            <access/>
+          </mode>
+          <access>
+            <vlan>50</vlan>
+          </access>
+        </switchport>
+        <shutdown>false</shutdown>
+      </GigabitEthernet>
+
+    </interface>
+  </native>
+</config>
