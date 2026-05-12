@@ -1,24 +1,24 @@
 [
   {
-    "name": "Router01",
+    "name": "Router1",
     "ip": "10.199.66.142",
     "username": "automation",
     "password": "test"
   },
   {
-    "name": "Router02",
+    "name": "Router2",
     "ip": "10.199.66.164",
     "username": "automation",
     "password": "test"
   },
   {
-    "name": "Switch01",
+    "name": "Switch1",
     "ip": "172.16.6.133",
     "username": "automation",
     "password": "test"
   },
   {
-    "name": "Switch02",
+    "name": "Switch2",
     "ip": "172.16.6.134",
     "username": "automation",
     "password": "test"
