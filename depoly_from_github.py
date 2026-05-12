@@ -71,9 +71,10 @@ def apply_config(m, xml_config):
         m.unlock("running")
 
 # -------------------------
-# GENERIC CHECK FUNCTIONS
+# CHECK FUNCTIONS
 # -------------------------
 
+# 01 Hostname
 def check_hostname(m, desired_xml):
     desired = ET.fromstring(desired_xml).find(".//xe:hostname", NS).text
     running = extract_text(netconf_get_config(m, """
@@ -83,57 +84,51 @@ def check_hostname(m, desired_xml):
     print(f"      Desired hostname: {desired}")
     return running != desired
 
+# 02 Domain name
 def check_domain_name(m, desired_xml):
     desired = ET.fromstring(desired_xml).find(".//xe:domain/xe:name", NS).text
     running = extract_text(netconf_get_config(m, """
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <ip><domain><name/></domain></ip>
-    </native>
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native"><ip><domain><name/></domain></ip></native>
     """), ".//xe:domain/xe:name")
     print(f"      Current domain: {running}")
     print(f"      Desired domain: {desired}")
     return running != desired
 
+# 03 Domain lookup
 def check_domain_lookup(m, desired_xml):
     desired = ET.fromstring(desired_xml).find(".//xe:lookup-conf/xe:lookup", NS).text
     running = extract_text(netconf_get_config(m, """
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <ip><domain><lookup-conf><lookup/></lookup-conf></domain></ip>
-    </native>
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native"><ip><domain><lookup-conf><lookup/></lookup-conf></domain></ip></native>
     """), ".//xe:lookup-conf/xe:lookup")
     print(f"      Current lookup: {running}")
     print(f"      Desired lookup: {desired}")
     return running != desired
 
+# 04 SSH version
 def check_ip_ssh_version(m, desired_xml):
     desired = ET.fromstring(desired_xml).find(".//xe:ssh/xe:version", NS).text
     running = extract_text(netconf_get_config(m, """
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <ip><ssh><version/></ssh></ip>
-    </native>
+    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native"><ip><ssh><version/></ssh></ip></native>
     """), ".//xe:ssh/xe:version")
     print(f"      Current SSH version: {running}")
     print(f"      Desired SSH version: {desired}")
     return running != desired
 
+# 05 Physical interface no-shut
 def check_interface_noshut(m, desired_xml):
     root = ET.fromstring(desired_xml)
     iface = root.find(".//xe:GigabitEthernet/xe:name", NS).text
-    desired_shutdown_tag = root.find(".//xe:GigabitEthernet/xe:shutdown", NS)
-    desired_is_shutdown = desired_shutdown_tag is not None
-
-    running_xml = netconf_get_config(m, f"""
+    desired = root.find(".//xe:GigabitEthernet/xe:shutdown", NS).text
+    running = extract_text(netconf_get_config(m, f"""
     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
       <interface><GigabitEthernet><name>{iface}</name><shutdown/></GigabitEthernet></interface>
     </native>
-    """)
-    running_shutdown = extract_text(running_xml, f".//xe:GigabitEthernet[xe:name='{iface}']/xe:shutdown")
-    running_is_shutdown = running_shutdown is not None
+    """), f".//xe:GigabitEthernet[xe:name='{iface}']/xe:shutdown")
+    print(f"      Interface Gi{iface} shutdown: {running}")
+    print(f"      Desired shutdown: {desired}")
+    return running != desired
 
-    print(f"      Interface Gi{iface} shutdown: {running_is_shutdown}")
-    print(f"      Desired shutdown: {desired_is_shutdown}")
-    return running_is_shutdown != desired_is_shutdown
-
+# 06 Subinterface IP
 def check_subinterface_ip(m, desired_xml):
     root = ET.fromstring(desired_xml)
     iface = root.find(".//xe:GigabitEthernet/xe:name", NS).text
@@ -151,29 +146,31 @@ def check_subinterface_ip(m, desired_xml):
     running_ip = extract_text(running_xml, f".//xe:GigabitEthernet[xe:name='{iface}']/xe:ip/xe:address/xe:primary/xe:address")
     running_mask = extract_text(running_xml, f".//xe:GigabitEthernet[xe:name='{iface}']/xe:ip/xe:address/xe:primary/xe:mask")
 
-    print(f"      Interface Gi{iface} current: {running_ip} {running_mask}")
+    print(f"      Subinterface Gi{iface} current: {running_ip} {running_mask}")
     print(f"      Desired: {desired_ip} {desired_mask}")
+
     return running_ip != desired_ip or running_mask != desired_mask
 
+# 07 Helper-address
 def check_subinterface_helper(m, desired_xml):
     root = ET.fromstring(desired_xml)
     iface = root.find(".//xe:GigabitEthernet/xe:name", NS).text
-    # let op: structuur moet overeenkomen met je XML (helper-list of direct helper-address)
-    desired = root.find(".//xe:helper-address//xe:helper-address", NS).text
+    desired = root.find(".//xe:helper-address/xe:helper-list/xe:helper-address", NS).text
 
-    running_xml = netconf_get_config(m, f"""
+    running = extract_text(netconf_get_config(m, f"""
     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
       <interface><GigabitEthernet><name>{iface}</name>
-        <ip><helper-address><helper-address/></helper-address></ip>
+        <ip><helper-address><helper-list><helper-address/></helper-list></helper-address></ip>
       </GigabitEthernet></interface>
     </native>
-    """)
-    running = extract_text(running_xml, f".//xe:GigabitEthernet[xe:name='{iface}']/xe:ip/xe:helper-address/xe:helper-address")
+    """), f".//xe:GigabitEthernet[xe:name='{iface}']/xe:ip/xe:helper-address/xe:helper-list/xe:helper-address")
 
     print(f"      Helper Gi{iface}: {running}")
     print(f"      Desired helper: {desired}")
+
     return running != desired
 
+# 08 OSPF router-id
 def check_ospf_routerid(m, desired_xml):
     desired = ET.fromstring(desired_xml).find(".//ospf:router-id", NS).text
     running = extract_text(netconf_get_config(m, """
@@ -185,121 +182,23 @@ def check_ospf_routerid(m, desired_xml):
     print(f"      Desired router-id: {desired}")
     return running != desired
 
-def check_dns(m, desired_xml):
-    desired = ET.fromstring(desired_xml).find(".//xe:name-server//xe:address", NS)
-    if desired is None:
-        desired = ET.fromstring(desired_xml).find(".//xe:name-server//xe:ip", NS)
-    desired_val = desired.text if desired is not None else None
-
-    running_xml = netconf_get_config(m, """
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <ip><name-server><address/></name-server></ip>
-    </native>
-    """)
-    running = extract_text(running_xml, ".//xe:name-server/xe:address")
-
-    print(f"      Current DNS: {running}")
-    print(f"      Desired DNS: {desired_val}")
-    return running != desired_val
-
-def check_default_gateway(m, desired_xml):
-    desired = ET.fromstring(desired_xml).find(".//xe:default-gateway", NS).text
-    running = extract_text(netconf_get_config(m, """
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <ip><default-gateway/></ip>
-    </native>
-    """), ".//xe:default-gateway")
-    print(f"      Current default gateway: {running}")
-    print(f"      Desired default gateway: {desired}")
-    return running != desired
-
-def check_svi_vlan_ip(m, desired_xml):
-    root = ET.fromstring(desired_xml)
-    vlan_id = root.find(".//xe:Vlan/xe:name", NS).text
-    desired_ip = root.find(".//xe:primary/xe:address", NS).text
-    desired_mask = root.find(".//xe:primary/xe:mask", NS).text
-
-    running_xml = netconf_get_config(m, f"""
-    <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
-      <interface>
-        <Vlan>
-          <name>{vlan_id}</name>
-          <ip>
-            <address>
-              <primary>
-                <address/>
-                <mask/>
-              </primary>
-            </address>
-          </ip>
-        </Vlan>
-      </interface>
-    </native>
-    """)
-
-    running_ip = extract_text(running_xml, f".//xe:Vlan[xe:name='{vlan_id}']/xe:ip/xe:address/xe:primary/xe:address")
-    running_mask = extract_text(running_xml, f".//xe:Vlan[xe:name='{vlan_id}']/xe:ip/xe:address/xe:primary/xe:mask")
-
-    print(f"      SVI VLAN {vlan_id} current: {running_ip} {running_mask}")
-    print(f"      Desired: {desired_ip} {desired_mask}")
-    return running_ip != desired_ip or running_mask != desired_mask
-
 # -------------------------
-# PER-DEVICE CHECK MAPS
+# MAP XML FILES TO FUNCTIONS
 # -------------------------
-
-CHECK_ROUTER1 = {
+CHECK_FUNCTIONS = {
     "01_hostname.xml": check_hostname,
     "02_domain.xml": check_domain_name,
-    "03_no_domain_lookup.xml": check_domain_lookup,
-    "04_ssh.xml": check_ip_ssh_version,
-    "05_int_g0_0_0.xml": check_interface_noshut,
-    "06_subif_10.xml": check_subinterface_ip,
-    "07_subif_20.xml": check_subinterface_ip,
-    "08_subif_30.xml": check_subinterface_ip,
-    "09_subif_40.xml": check_subinterface_ip,      # IP
-    "10_int_g0_0_1.xml": check_subinterface_ip,
-    "11_ospf.xml": check_ospf_routerid,
+    "03_domain_lookup.xml": check_domain_lookup,
+    "04_ip_ssh.xml": check_ip_ssh_version,
+    "05_gi0_0_0_noshut.xml": check_interface_noshut,
+    "06_gi0_0_0_10.xml": check_subinterface_ip,
+    "07_gi0_0_0_20.xml": check_subinterface_ip,
+    "08_gi0_0_0_30.xml": check_subinterface_ip,
+    "09_gi0_0_0_40_ip.xml": check_subinterface_ip,
+    "10_gi0_0_0_40_helper.xml": check_subinterface_helper,
+    "11_gi0_0_1.xml": check_subinterface_ip,
+    "12_ospf.xml": check_ospf_routerid,
 }
-
-CHECK_ROUTER2 = {
-    "01_hostname.xml": check_hostname,
-    "02_domain.xml": check_domain_name,
-    "03_ssh.xml": check_ip_ssh_version,
-    "04_subif_10.xml": check_subinterface_ip,
-    "05_subif_20.xml": check_subinterface_ip,
-    "06_subif_30.xml": check_subinterface_ip,
-    "07_subif_40.xml": check_subinterface_ip,      # IP
-    "08_int_g0_0_1.xml": check_subinterface_ip,
-    "09_ospf.xml": check_ospf_routerid,
-}
-
-CHECK_SWITCH1 = {
-    "01_hostname.xml": check_hostname,
-    "02_domain.xml": check_domain_name,
-    "03_dns.xml": check_dns,
-    "04_default_gateway.xml": check_default_gateway,
-    "05_svi_vlan10.xml": check_svi_vlan_ip,
-}
-
-CHECK_SWITCH2 = {
-    "01_hostname.xml": check_hostname,
-    "02_domain.xml": check_domain_name,
-    "03_dns.xml": check_dns,
-    "04_default_gateway.xml": check_default_gateway,
-    "05_svi_vlan10.xml": check_svi_vlan_ip,
-}
-
-def get_check_map(device_name):
-    if device_name == "Router1":
-        return CHECK_ROUTER1
-    if device_name == "Router2":
-        return CHECK_ROUTER2
-    if device_name == "Switch1":
-        return CHECK_SWITCH1
-    if device_name == "Switch2":
-        return CHECK_SWITCH2
-    return {}
 
 # -------------------------
 # DEVICE DEPLOY
@@ -320,8 +219,6 @@ def deploy_device(device):
     except Exception as e:
         print(f"[!] Cannot load config list for {name}: {e}")
         return
-
-    check_map = get_check_map(name)
 
     try:
         with manager.connect(
@@ -345,8 +242,8 @@ def deploy_device(device):
                     print(f"      [!] Skipping {filename}: {e}")
                     continue
 
-                if filename in check_map:
-                    needs_change = check_map[filename](m, desired_xml)
+                if filename in CHECK_FUNCTIONS:
+                    needs_change = CHECK_FUNCTIONS[filename](m, desired_xml)
 
                     if not needs_change:
                         print(f"      [=] SKIP {filename} (already correct)")
@@ -354,6 +251,7 @@ def deploy_device(device):
 
                     print(f"      [!] APPLY {filename}")
                     apply_config(m, desired_xml)
+
                 else:
                     print(f"      [?] No check function for {filename}, applying anyway...")
                     apply_config(m, desired_xml)
