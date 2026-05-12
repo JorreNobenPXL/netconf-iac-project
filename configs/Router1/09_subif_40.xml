@@ -1,0 +1,29 @@
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>0/0/0.40</name>
+        <encapsulation>
+          <dot1Q>
+            <vlan-id>40</vlan-id>
+          </dot1Q>
+        </encapsulation>
+        <ip>
+          <address>
+            <primary>
+              <address>172.16.6.178</address>
+              <mask>255.255.255.240</mask>
+            </primary>
+          </address>
+        </ip>
+        <ip>
+          <helper-address>
+            <helper-list>
+              <helper-address>10.199.64.66</helper-address>
+            </helper-list>
+          </helper-address>
+        </ip>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</config>

@@ -1,0 +1,18 @@
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <interface>
+      <GigabitEthernet>
+        <name>0/0/1</name>
+        <ip>
+          <address>
+            <primary>
+              <address>10.199.66.142</address>
+              <mask>255.255.255.192</mask>
+            </primary>
+          </address>
+        </ip>
+        <shutdown>false</shutdown>
+      </GigabitEthernet>
+    </interface>
+  </native>
+</config>

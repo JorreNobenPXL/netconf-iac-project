@@ -1,0 +1,11 @@
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <ip>
+      <domain>
+        <lookup-conf>
+          <lookup>false</lookup>
+        </lookup-conf>
+      </domain>
+    </ip>
+  </native>
+</config>
