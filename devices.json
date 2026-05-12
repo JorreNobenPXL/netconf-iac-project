@@ -1,18 +1,26 @@
 [
   {
-    "name": "Router1",
-    "ip": "192.168.50.1",
-    "port": 830,
+    "name": "Router01",
+    "ip": "10.199.66.142",
     "username": "automation",
-    "password": "test",
-    "type": "router"
+    "password": "test"
   },
   {
-    "name": "Switch1",
-    "ip": "192.168.50.2",
-    "port": 830,
+    "name": "Router02",
+    "ip": "10.199.66.164",
     "username": "automation",
-    "password": "test",
-    "type": "switch"
+    "password": "test"
+  },
+  {
+    "name": "Switch01",
+    "ip": "172.16.6.133",
+    "username": "automation",
+    "password": "test"
+  },
+  {
+    "name": "Switch02",
+    "ip": "172.16.6.134",
+    "username": "automation",
+    "password": "test"
   }
 ]
