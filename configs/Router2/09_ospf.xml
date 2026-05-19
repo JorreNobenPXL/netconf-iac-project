@@ -3,7 +3,7 @@
     <router>
       <ospf xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-ospf">
         <id>10</id>
-        <router-id>10.199.66.164</router-id>
+        <router-id>10.199.66.165</router-id>
       </ospf>
     </router>
   </native>
